@@ -3,30 +3,27 @@
 #include <cstring>
 #include <string>
 
-
 class AppendBuffer {
 public:
-
-   AppendBuffer() {
-      len = 0;
+   AppendBuffer() : buffer_(nullptr), len_(0) {
    }
 
    void Append(const std::string& str) {
-      char* newBuf = static_cast<char*>(realloc(b, len + str.size()));
+      char* newBuf = static_cast<char*>(realloc(buffer_, len_ + str.size()));
 
       if (newBuf == nullptr) return;
-      memcpy(&newBuf[len], str.c_str(), str.size());
-      b = newBuf;
-      len += str.size();
+      memcpy(&newBuf[len_], str.c_str(), str.size());
+      buffer_ = newBuf;
+      len_ += str.size();
    }
 
    ~AppendBuffer() {
-      free(b);
+      if (buffer_ != nullptr) free(buffer_);
    }
 
 private:
-   char* b;
-   int len;
+   char* buffer_;
+   int   len_;
 };
 
 
