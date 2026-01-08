@@ -17,10 +17,12 @@ public:
      {}
 
    bool DataExistsAtRow(int row);
+   std::string_view GetVisibleRow(int i);
    void DrawRows();
    void RefreshScreen();
    int ReadKey();
    void MoveCursor(int c);
+   void EditorScroll();
    void ProcessKeypress(int c);
    SpecialKey ConvertEscapeKey();
 

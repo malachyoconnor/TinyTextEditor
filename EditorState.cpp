@@ -26,6 +26,14 @@ void EditorState::AddToRowOffsetIfPossible(int n) {
    }
 }
 
+void EditorState::AddToColumnOffsetIfPossible(int n) {
+   columnOffset_ += n;
+
+   if (columnOffset_ < 0) {
+      columnOffset_ = 0;
+   }
+}
+
 void EditorState::EnableRawMode() {
    if (initialTerminalAttributes_.has_value()) {
       throw std::logic_error("Tried to update initial terminal attributes more than once!");

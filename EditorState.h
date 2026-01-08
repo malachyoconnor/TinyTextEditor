@@ -17,6 +17,7 @@ public:
       screenCols_(-1),
       initialTerminalAttributes_(std::nullopt),
       rowOffset_(0),
+      columnOffset_(0),
       allRows_({}),
       numRowsWithData_(0),
       buf_(AppendBuffer())
@@ -42,24 +43,24 @@ public:
    ~EditorState();
 
    void AddToRowOffsetIfPossible(int n);
+   void AddToColumnOffsetIfPossible(int n);
 
    [[nodiscard]]
-   const std::string& GetRow(int i) const {
-      return allRows_[i + rowOffset_];
+   const std::string_view GetWholeRow() const {
+      return std::string_view(allRows_[rowOffset_]);
    }
 
    [[nodiscard]]
-   int GetRowOffset() const {
-      return rowOffset_;
+   const std::string_view GetWholeRow(int i) const {
+      return std::string_view(allRows_[i + rowOffset_]);
    }
 
-   [[nodiscard]]
+   int GetRowOffset() const { return rowOffset_; }
+   int GetColumnOffset() const { return columnOffset_; }
+   int GetCurrentRowWidth() const { return GetWholeRow().length(); }
+
    int GetScreenRows() const { return screenRows_; }
-
-   [[nodiscard]]
    int GetScreenCols() const { return screenCols_; }
-
-   [[nodiscard]]
    int GetNumRowsWithData() const { return numRowsWithData_; }
 
 private:
@@ -68,6 +69,7 @@ private:
    std::optional<termios> initialTerminalAttributes_;
 
    int rowOffset_;
+   int columnOffset_;
    std::vector<std::string> allRows_;
    int numRowsWithData_;
 

@@ -60,13 +60,25 @@ bool Editor::DataExistsAtRow(int row) {
        && editorState_.GetRowOffset() + row < editorState_.GetNumRowsWithData();
 }
 
+std::string_view Editor::GetVisibleRow(int i) {
+   std::string_view fullRow = editorState_.GetWholeRow(i);
+   int colOffset = editorState_.GetColumnOffset();
+
+   if (colOffset >= fullRow.length()) {
+      return "";
+   }
+
+   std::string_view offsetRow = fullRow.substr(colOffset);
+   return offsetRow.substr(0, std::min(editorState_.GetScreenCols(), static_cast<int>(offsetRow.length())));
+}
+
 void Editor::DrawRows() {
    if (editorState_.GetNumRowsWithData() == 0) { DrawSplashScreen(); return; }
 
    for (int y = 0; y < editorState_.GetScreenRows(); y++) {
 
       if (DataExistsAtRow(y)) {
-         appendBuffer_.Append(editorState_.GetRow(y));
+         appendBuffer_.Append(GetVisibleRow(y));
       } else {
          appendBuffer_.Append("->");
       }
@@ -109,27 +121,53 @@ void Editor::MoveCursor(int c) {
       case ARROW_DOWN:               ++cursorY_;                                    break;
       case ARROW_RIGHT:              ++cursorX_;                                    break;
 
-         // TODO: This implementation is more useful for scrolling apparently
-         // {
-         //    int times = E.screenrows;
-         //    while (times--)
-         //       editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
-         // }
+      // TODO: This implementation is more useful for scrolling apparently
+      // {
+      //    int times = E.screenrows;
+      //    while (times--)
+      //       editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+      // }
       case PAGE_UP:                  cursorY_ = 0;                                  break;
       case PAGE_DOWN:                cursorY_ = editorState_.GetScreenRows()-1;     break;
       case HOME:                     cursorX_ = 0;                                  break;
       case END:                      cursorX_ = editorState_.GetScreenCols()-1;     break;
    }
 
-   if (cursorX_ < 0) cursorX_ = 0;
-   if (cursorX_ >= editorState_.GetScreenCols()) cursorX_ = editorState_.GetScreenCols()-1;
+   EditorScroll();
+}
 
+void Editor::EditorScroll() {
+   int rowLen = 0;
+   int currentRowIdx = editorState_.GetRowOffset() + cursorY_;
+
+   if (currentRowIdx >= 0 && currentRowIdx < editorState_.GetNumRowsWithData()) {
+      rowLen = static_cast<int>(editorState_.GetWholeRow(cursorY_).length());
+   }
+
+   // Clamp the cursor to the last character of the row
+   int charIdx = editorState_.GetColumnOffset() + cursorX_;
+   if (charIdx >= rowLen) {
+      int targetIdx = std::max(0, rowLen - 1);
+      int adjustment = targetIdx - charIdx;
+      cursorX_ += adjustment;
+   }
+
+   // Handle Horizontal Scrolling
+   if (cursorX_ < 0) {
+      editorState_.AddToColumnOffsetIfPossible(cursorX_);
+      cursorX_ = 0;
+   }
+   else if (cursorX_ >= editorState_.GetScreenCols()) {
+      editorState_.AddToColumnOffsetIfPossible(cursorX_ - editorState_.GetScreenCols() + 1);
+      cursorX_ = editorState_.GetScreenCols() - 1;
+   }
+
+   // Handle Vertical Scrolling
    if (cursorY_ < 0) {
       editorState_.AddToRowOffsetIfPossible(cursorY_);
       cursorY_ = 0;
    }
-
-   if (cursorY_ >= editorState_.GetScreenRows()) {
+   else if (cursorY_ >= editorState_.GetScreenRows()) {
       editorState_.AddToRowOffsetIfPossible(cursorY_ - editorState_.GetScreenRows() + 1);
       cursorY_ = editorState_.GetScreenRows() - 1;
    }
@@ -149,9 +187,7 @@ void Editor::ProcessKeypress(int c) {
       case PAGE_UP:
       case PAGE_DOWN:
       case HOME:
-      case END:                     MoveCursor(c);            break;
-
-
+      case END:                      MoveCursor(c);           break;
       case utils::ControlKey('q'): shouldContinue_ = false; break;
    }
 }

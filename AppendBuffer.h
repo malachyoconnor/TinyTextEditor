@@ -7,7 +7,7 @@ class AppendBuffer {
 public:
    AppendBuffer() = default;
 
-   void Append(const std::string& str) {
+   void Append(const std::string_view str) {
       buffer_ += str;
    }
 
