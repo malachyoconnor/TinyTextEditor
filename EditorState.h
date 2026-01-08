@@ -10,13 +10,18 @@
 class EditorState {
 public:
    EditorState() {
-      auto [numRows, numCols] = terminal::GetWindowSize();
-      if (numRows == -1 || numCols == -1) {
-         utils::FailAndExit(std::format("Read rows and columns as ({},{})", numRows, numCols));
+      EnableRawMode();
+
+      if (utils::isDebuggerAttached()) {
+         screenCols_ = 0;
+         screenRows_ = 0;
+         return;
       }
 
-      screenCols_ = numCols;
-      screenRows_ = numRows;
+      std::tie(screenCols_, screenRows_) = terminal::GetWindowSize();
+      if (screenRows_ == -1 || screenCols_ == -1) {
+         utils::FailAndExit(std::format("Read rows and columns as ({},{})", screenRows_, screenCols_));
+      }
    }
 
    ~EditorState();

@@ -12,7 +12,7 @@ EditorState::~EditorState() {
    }
 
    terminal::ClearScreen();
-   std::cout << "GoodBye!" << std::endl;
+   write(STDOUT_FILENO, "Goodbye!", sizeof("Goodbye!"));
 }
 
 void EditorState::EnableRawMode() {

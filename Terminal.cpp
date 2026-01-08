@@ -4,27 +4,40 @@
 #include "utils.h"
 #include <sys/ioctl.h>
 
+#include "Escape.h"
+
 namespace terminal {
+
+   ssize_t Write(const std::string& str) {
+      return write(STDOUT_FILENO, str.c_str(), str.size());
+   }
+
+   // Returns if everything was written
+   bool WriteAll(const std::string& str) {
+      return write(STDOUT_FILENO, str.c_str(), str.size()) == str.size();
+   }
+
    void JumpToFirstPixel() {
       // Write an escape sequence that jumps to the beginning of the terminal
-      write(STDOUT_FILENO, "\x1b[H", 3);
+      Write(escape::JumpToFirstPixel());
    }
 
    void JumpToLastPixel() {
-      // First we move 999 "pixels" right, then 999 "pixels" down
-      if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12) {
+      if (!WriteAll(escape::MoveRight(999) + escape::MoveDown(999))) {
          utils::FailAndExit("Error writing to terminal when trying to jump to last pixel!");
       }
    }
 
    void ClearScreen() {
-      // Write an escape sequence that clears the screen
-      write(STDOUT_FILENO, "\x1b[2J", 4);
+      Write(escape::ClearScreen());
    }
 
    std::pair<int,int> GetCursorPosition() {
+      // CLION debugging
+      if (utils::isDebuggerAttached()) return {0,0};
+
       // This asks for the cursor position from the terminal
-      if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) {
+      if (!WriteAll(escape::RequestCursorPosition())) {
          utils::FailAndExit("Couldn't get cursor position from terminal!");
       }
 
@@ -46,9 +59,10 @@ namespace terminal {
          utils::FailAndExit("Buffer invalid when getting cursor");
       }
 
-      return {rows, cols};
+      return {cols, rows};
    }
 
+   // Returns {num columns, num rows}
    std::pair<int, int> GetWindowSize() {
       winsize windowSize {};
       bool ioctlFailed = ioctl(STDOUT_FILENO, TIOCGWINSZ, &windowSize) == -1;

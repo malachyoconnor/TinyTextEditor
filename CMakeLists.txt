@@ -10,7 +10,17 @@ add_executable(TinyTextEditor main.cpp
         Terminal.h
         Terminal.cpp
         EditorState.cpp
-        Editor.cpp)
+        Editor.cpp
+        Escape.h
+        KeyPress.h)
+
+add_executable(KeyPressDetector
+        KeyPressDetector.cpp EditorState.cpp Editor.h Terminal.h Terminal.cpp utils.h)
+
+# Makes the binaries output to the root directory
 set_target_properties(TinyTextEditor PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/.."
+)
+set_target_properties(KeyPressDetector PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/.."
 )
