@@ -6,13 +6,14 @@ enum SpecialKey {
 
    // Outside the range of a char
    ARROW_LEFT = 1000,
+   ARROW_DOWN,
    ARROW_RIGHT,
    ARROW_UP,
-   ARROW_DOWN,
-   PAGE_UP,
-   PAGE_DOWN,
-   HOME,
+   DELETE,
    END,
+   HOME,
+   PAGE_DOWN,
+   PAGE_UP,
  };
 
 #endif //TINYTEXTEDITOR_KEYPRESS_H

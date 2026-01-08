@@ -15,6 +15,17 @@ EditorState::~EditorState() {
    write(STDOUT_FILENO, "Goodbye!", sizeof("Goodbye!"));
 }
 
+void EditorState::AddToRowOffsetIfPossible(int n) {
+   rowOffset_ += n;
+
+   if (rowOffset_ < 0) {
+      rowOffset_ = 0;
+   }
+   else if (rowOffset_ >= allRows_.size()) {
+      rowOffset_ = allRows_.size() - 1;
+   }
+}
+
 void EditorState::EnableRawMode() {
    if (initialTerminalAttributes_.has_value()) {
       throw std::logic_error("Tried to update initial terminal attributes more than once!");
@@ -48,4 +59,30 @@ void EditorState::EnableRawMode() {
    // This sets the read timeout time to 1 * (100 milliseconds)
    terminalAttributes.c_cc[VTIME] = 1;
    tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminalAttributes);
+}
+
+void EditorState::AppendRow(const std::string &row) {
+   allRows_.push_back(row);
+   ++numRowsWithData_;
+}
+
+void EditorState::OpenFile(const std::filesystem::path& path) {
+   std::ifstream fileStream (path);
+   if (!fileStream.is_open()) {
+      utils::FailAndExit(std::format("Could not open file: {}", path.string()));
+   }
+
+   std::string line;
+   while (std::getline(fileStream, line)) {
+      AppendRow(line);
+   }
+
+   if (!fileStream.eof()) {
+      utils::FailAndExit(std::format("Could not read the whole file: {}", path.string()));
+   }
+   if (fileStream.bad()) {
+      utils::FailAndExit(std::format("Could not read file: {}", path.string()));
+   }
+
+
 }

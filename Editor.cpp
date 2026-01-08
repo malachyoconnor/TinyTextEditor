@@ -1,7 +1,7 @@
 #include "Editor.h"
 
 #include "Escape.h"
-#include "KeyPress.h"
+#include "SpecialKey.h"
 
 void Editor::HideCursor() {
    if (cursorHidden_) {
@@ -38,17 +38,38 @@ void Editor::UpdateCursorPosition(int x, int y) {
    appendBuffer_.Append(escape::SetCursorPosition(x, y));
 }
 
-void Editor::DrawRows() {
+void Editor::DrawSplashScreen() {
    for (int y = 0; y < editorState_.GetScreenRows(); y++) {
 
       if (y == editorState_.GetScreenRows() / 3) {
          std::string welcomeMessage = std::format("Tiny editor -- version {}", TINY_EDITOR_VERSION);
-
          appendBuffer_.Append(std::format("{:^{}}", welcomeMessage, editorState_.GetScreenCols()));
       } else {
          appendBuffer_.Append("->");
       }
 
+      appendBuffer_.Append(escape::ClearLineRightOfCursor());
+      if (y != editorState_.GetScreenRows() - 1) {
+         appendBuffer_.Append("\r\n");
+      }
+   }
+}
+
+bool Editor::DataExistsAtRow(int row) {
+   return editorState_.GetRowOffset() + row >= 0
+       && editorState_.GetRowOffset() + row < editorState_.GetNumRowsWithData();
+}
+
+void Editor::DrawRows() {
+   if (editorState_.GetNumRowsWithData() == 0) { DrawSplashScreen(); return; }
+
+   for (int y = 0; y < editorState_.GetScreenRows(); y++) {
+
+      if (DataExistsAtRow(y)) {
+         appendBuffer_.Append(editorState_.GetRow(y));
+      } else {
+         appendBuffer_.Append("->");
+      }
 
       appendBuffer_.Append(escape::ClearLineRightOfCursor());
       if (y != editorState_.GetScreenRows() - 1) {
@@ -81,6 +102,39 @@ int Editor::ReadKey() {
    return c;
 }
 
+void Editor::MoveCursor(int c) {
+   switch (c) {
+      case ARROW_UP:                 --cursorY_;                                    break;
+      case ARROW_LEFT:               --cursorX_;                                    break;
+      case ARROW_DOWN:               ++cursorY_;                                    break;
+      case ARROW_RIGHT:              ++cursorX_;                                    break;
+
+         // TODO: This implementation is more useful for scrolling apparently
+         // {
+         //    int times = E.screenrows;
+         //    while (times--)
+         //       editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+         // }
+      case PAGE_UP:                  cursorY_ = 0;                                  break;
+      case PAGE_DOWN:                cursorY_ = editorState_.GetScreenRows()-1;     break;
+      case HOME:                     cursorX_ = 0;                                  break;
+      case END:                      cursorX_ = editorState_.GetScreenCols()-1;     break;
+   }
+
+   if (cursorX_ < 0) cursorX_ = 0;
+   if (cursorX_ >= editorState_.GetScreenCols()) cursorX_ = editorState_.GetScreenCols()-1;
+
+   if (cursorY_ < 0) {
+      editorState_.AddToRowOffsetIfPossible(cursorY_);
+      cursorY_ = 0;
+   }
+
+   if (cursorY_ >= editorState_.GetScreenRows()) {
+      editorState_.AddToRowOffsetIfPossible(cursorY_ - editorState_.GetScreenRows() + 1);
+      cursorY_ = editorState_.GetScreenRows() - 1;
+   }
+}
+
 // Returns bool for if we should exit.
 void Editor::ProcessKeypress(int c) {
    if (c == ESCAPE_CHAR) {
@@ -88,18 +142,17 @@ void Editor::ProcessKeypress(int c) {
    }
 
    switch (c) {
-      case ARROW_UP:                 cursorY_ = std::max(cursorY_-1, 0);                              break;
-      case ARROW_LEFT:               cursorX_ = std::max(cursorX_-1, 0);                              break;
-      case ARROW_DOWN:               cursorY_ = std::min(cursorY_+1, editorState_.GetScreenRows()-1); break;
-      case ARROW_RIGHT:              cursorX_ = std::min(cursorX_+1, editorState_.GetScreenCols()-1); break;
+      case ARROW_UP:
+      case ARROW_LEFT:
+      case ARROW_DOWN:
+      case ARROW_RIGHT:
+      case PAGE_UP:
+      case PAGE_DOWN:
+      case HOME:
+      case END:                     MoveCursor(c);            break;
 
-      case PAGE_UP:                  cursorY_ = 0;                                                        break;
-      case PAGE_DOWN:                cursorY_ = editorState_.GetScreenRows()-1;                           break;
-      case HOME:                     cursorX_ = 0;                                                        break;
-      case END:                      cursorX_ = editorState_.GetScreenCols()-1;                           break;
 
-
-      case utils::ControlKey('q'): shouldContinue_ = false;                                             break;
+      case utils::ControlKey('q'): shouldContinue_ = false; break;
    }
 }
 
@@ -109,6 +162,7 @@ SpecialKey Editor::ConvertEscapeKey() {
    if (read(STDIN_FILENO, &seq[0], 1) != 1) return ESCAPE_CHAR;
    if (read(STDIN_FILENO, &seq[1], 1) != 1) return ESCAPE_CHAR;
 
+   // NOTE: Different terminals + OSes use different keys for HOME & END
    if (seq[0] == '[') {
 
       // 3 character escape codes where the second character is a digit
@@ -117,8 +171,13 @@ SpecialKey Editor::ConvertEscapeKey() {
 
          if (seq[2] == '~') {
             switch (seq[1]) {
+               case '1': return HOME;
+               case '3': return DELETE;
+               case '4': return END;
                case '5': return PAGE_UP;
                case '6': return PAGE_DOWN;
+               case '7': return HOME;
+               case '8': return END;
             }
          }
       }
@@ -133,6 +192,12 @@ SpecialKey Editor::ConvertEscapeKey() {
             case 'F':  return END;
             case 'H':  return HOME;
          }
+      }
+   }
+   else if (seq[0] == 'O') {
+      switch (seq[1]) {
+         case 'H': return HOME;
+         case 'F': return END;
       }
    }
 

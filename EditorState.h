@@ -3,13 +3,24 @@
 #include <format>
 #include <optional>
 #include <termios.h>
+#include <filesystem>
+#include <vector>
+
 #include "AppendBuffer.h"
 #include "Terminal.h"
 #include "utils.h"
 
 class EditorState {
 public:
-   EditorState() {
+   EditorState() :
+      screenRows_(-1),
+      screenCols_(-1),
+      initialTerminalAttributes_(std::nullopt),
+      rowOffset_(0),
+      allRows_({}),
+      numRowsWithData_(0),
+      buf_(AppendBuffer())
+   {
       EnableRawMode();
 
       if (utils::isDebuggerAttached()) {
@@ -24,7 +35,23 @@ public:
       }
    }
 
+   void EnableRawMode();
+   // TEMP
+   void AppendRow(const std::string& row);
+   void OpenFile(const std::filesystem::path &path);
    ~EditorState();
+
+   void AddToRowOffsetIfPossible(int n);
+
+   [[nodiscard]]
+   const std::string& GetRow(int i) const {
+      return allRows_[i + rowOffset_];
+   }
+
+   [[nodiscard]]
+   int GetRowOffset() const {
+      return rowOffset_;
+   }
 
    [[nodiscard]]
    int GetScreenRows() const { return screenRows_; }
@@ -32,14 +59,19 @@ public:
    [[nodiscard]]
    int GetScreenCols() const { return screenCols_; }
 
-   void EnableRawMode();
+   [[nodiscard]]
+   int GetNumRowsWithData() const { return numRowsWithData_; }
 
 private:
-   int screenRows_ = -1;
-   int screenCols_ = -1;
-   std::optional<termios> initialTerminalAttributes_ = std::nullopt;
+   int screenRows_;
+   int screenCols_;
+   std::optional<termios> initialTerminalAttributes_;
 
-   AppendBuffer buf;
+   int rowOffset_;
+   std::vector<std::string> allRows_;
+   int numRowsWithData_;
+
+   AppendBuffer buf_;
 };
 
 #endif //TINYTEXTEDITOR_EDITORSTATE_H

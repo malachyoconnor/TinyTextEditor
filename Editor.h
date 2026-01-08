@@ -1,7 +1,7 @@
 #ifndef TINYTEXTEDITOR_EDITOR_H
 #define TINYTEXTEDITOR_EDITOR_H
 #include "EditorState.h"
-#include "KeyPress.h"
+#include "SpecialKey.h"
 
 constexpr std::string TINY_EDITOR_VERSION = "0.0.1";
 
@@ -9,22 +9,25 @@ class Editor {
 public:
    Editor(EditorState& editorState)
    : shouldContinue_(true),
+     cursorHidden_(false),
      editorState_(editorState),
      appendBuffer_(AppendBuffer()),
-     cursorHidden_(false),
-   cursorX_(0),
-   cursorY_(0)
-   {}
+     cursorX_(0),
+     cursorY_(0)
+     {}
 
+   bool DataExistsAtRow(int row);
    void DrawRows();
    void RefreshScreen();
    int ReadKey();
+   void MoveCursor(int c);
    void ProcessKeypress(int c);
    SpecialKey ConvertEscapeKey();
 
    void ClearScreen();
    void JumpToFirstPixel();
    void UpdateCursorPosition(int x, int y);
+   void DrawSplashScreen();
    void HideCursor();
    void ShowCursor();
    void ClearLineRightOfCursor();
@@ -34,12 +37,14 @@ public:
 
 
 private:
-   bool shouldContinue_;
+   bool         shouldContinue_;
+   bool         cursorHidden_;
    EditorState& editorState_;
    AppendBuffer appendBuffer_;
-   bool cursorHidden_;
-   int cursorX_;
-   int cursorY_;
+   int          cursorX_;
+   int          cursorY_;
+   std::string  editorRow_;
+   int          numEditorRows_;
 };
 
 
