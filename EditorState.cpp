@@ -15,22 +15,22 @@ EditorState::~EditorState() {
    write(STDOUT_FILENO, "Goodbye!", sizeof("Goodbye!"));
 }
 
-void EditorState::AddToRowOffsetIfPossible(int n) {
-   rowOffset_ += n;
+void EditorState::AddToYOffsetIfPossible(int n) {
+   yOffset_ += n;
 
-   if (rowOffset_ < 0) {
-      rowOffset_ = 0;
+   if (yOffset_ < 0) {
+      yOffset_ = 0;
    }
-   else if (rowOffset_ >= allRows_.size()) {
-      rowOffset_ = allRows_.size() - 1;
+   else if (yOffset_ >= allLines_.size()) {
+      yOffset_ = allLines_.size() - 1;
    }
 }
 
-void EditorState::AddToColumnOffsetIfPossible(int n) {
-   columnOffset_ += n;
+void EditorState::AddToXOffsetIfPossible(int n) {
+   xOffset_ += n;
 
-   if (columnOffset_ < 0) {
-      columnOffset_ = 0;
+   if (xOffset_ < 0) {
+      xOffset_ = 0;
    }
 }
 
@@ -69,9 +69,8 @@ void EditorState::EnableRawMode() {
    tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminalAttributes);
 }
 
-void EditorState::AppendRow(const std::string &row) {
-   allRows_.push_back(row);
-   ++numRowsWithData_;
+void EditorState::AppendLine(const std::string &row) {
+   allLines_.push_back(row);
 }
 
 void EditorState::OpenFile(const std::filesystem::path& path) {
@@ -82,7 +81,7 @@ void EditorState::OpenFile(const std::filesystem::path& path) {
 
    std::string line;
    while (std::getline(fileStream, line)) {
-      AppendRow(line);
+      AppendLine(line);
    }
 
    if (!fileStream.eof()) {

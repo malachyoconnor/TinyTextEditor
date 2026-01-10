@@ -6,7 +6,7 @@
 namespace escape {
 
    constexpr std::string ClearLineRightOfCursor() {
-      return "\x1b[K";
+      return "\x1b[0K";
    }
 
    constexpr std::string ClearWholeLine() {

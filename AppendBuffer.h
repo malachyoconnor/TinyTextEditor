@@ -1,5 +1,6 @@
 #ifndef TINYTEXTEDITOR_APPENDBUFFER_H
 #define TINYTEXTEDITOR_APPENDBUFFER_H
+#include <iostream>
 #include <string>
 #include <unistd.h>
 

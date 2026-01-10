@@ -13,65 +13,63 @@
 class EditorState {
 public:
    EditorState() :
-      screenRows_(-1),
-      screenCols_(-1),
+      screenY_(-1),
+      screenX_(-1),
       initialTerminalAttributes_(std::nullopt),
-      rowOffset_(0),
-      columnOffset_(0),
-      allRows_({}),
-      numRowsWithData_(0),
+      yOffset_(0),
+      xOffset_(0),
+      allLines_({}),
       buf_(AppendBuffer())
    {
       EnableRawMode();
 
       if (utils::isDebuggerAttached()) {
-         screenCols_ = 0;
-         screenRows_ = 0;
+         screenX_ = 0;
+         screenY_ = 0;
          return;
       }
 
-      std::tie(screenCols_, screenRows_) = terminal::GetWindowSize();
-      if (screenRows_ == -1 || screenCols_ == -1) {
-         utils::FailAndExit(std::format("Read rows and columns as ({},{})", screenRows_, screenCols_));
+      std::tie(screenX_, screenY_) = terminal::GetWindowSize();
+      if (screenY_ == -1 || screenX_ == -1) {
+         utils::FailAndExit(std::format("Read rows and columns as ({},{})", screenY_, screenX_));
       }
    }
 
    void EnableRawMode();
    // TEMP
-   void AppendRow(const std::string& row);
+   void AppendLine(const std::string& row);
    void OpenFile(const std::filesystem::path &path);
    ~EditorState();
 
-   void AddToRowOffsetIfPossible(int n);
-   void AddToColumnOffsetIfPossible(int n);
+   void AddToYOffsetIfPossible(int n);
+   void AddToXOffsetIfPossible(int n);
 
    [[nodiscard]]
-   const std::string_view GetWholeRow() const {
-      return std::string_view(allRows_[rowOffset_]);
+   const std::string_view GetWholeLine() const {
+      return std::string_view(allLines_[yOffset_]);
    }
 
    [[nodiscard]]
-   const std::string_view GetWholeRow(int i) const {
-      return std::string_view(allRows_[i + rowOffset_]);
+   const std::string_view GetWholeLine(int i) const {
+      return std::string_view(allLines_[i + yOffset_]);
    }
 
-   int GetRowOffset() const { return rowOffset_; }
-   int GetColumnOffset() const { return columnOffset_; }
-   int GetCurrentRowWidth() const { return GetWholeRow().length(); }
+   int GetYOffset() const { return yOffset_; }
+   int GetXOffset() const { return xOffset_; }
+   int GetCurrentLineWidth() const { return GetWholeLine().length(); }
 
-   int GetScreenRows() const { return screenRows_; }
-   int GetScreenCols() const { return screenCols_; }
-   int GetNumRowsWithData() const { return numRowsWithData_; }
+   int GetScreenHeight() const { return screenY_; }
+   int GetScreenWidth() const { return screenX_; }
+   int GetNumRowsWithData() const { return allLines_.size(); }
 
 private:
-   int screenRows_;
-   int screenCols_;
+   int screenY_;
+   int screenX_;
    std::optional<termios> initialTerminalAttributes_;
 
-   int rowOffset_;
-   int columnOffset_;
-   std::vector<std::string> allRows_;
-   int numRowsWithData_;
+   int yOffset_;
+   int xOffset_;
+   std::vector<std::string> allLines_;
 
    AppendBuffer buf_;
 };

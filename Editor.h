@@ -17,7 +17,7 @@ public:
      {}
 
    bool DataExistsAtRow(int row);
-   std::string_view GetVisibleRow(int i);
+   std::string_view GetVisibleCharactersAtRow(int i);
    void DrawRows();
    void RefreshScreen();
    int ReadKey();

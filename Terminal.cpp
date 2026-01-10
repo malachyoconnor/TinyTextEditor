@@ -8,10 +8,6 @@
 
 namespace terminal {
 
-   ssize_t Write(const std::string& str) {
-      return write(STDOUT_FILENO, str.c_str(), str.size());
-   }
-
    // Returns if everything was written
    bool WriteAll(const std::string& str) {
       return write(STDOUT_FILENO, str.c_str(), str.size()) == str.size();
@@ -19,7 +15,9 @@ namespace terminal {
 
    void JumpToFirstPixel() {
       // Write an escape sequence that jumps to the beginning of the terminal
-      Write(escape::JumpToFirstPixel());
+      if (!WriteAll(escape::JumpToFirstPixel())) {
+         utils::FailAndExit("Error writing to terminal when trying to jump to first pixel!");
+      }
    }
 
    void JumpToLastPixel() {
@@ -29,7 +27,9 @@ namespace terminal {
    }
 
    void ClearScreen() {
-      Write(escape::ClearScreen());
+      if (!WriteAll(escape::ClearScreen())) {
+         utils::FailAndExit("Error writing to terminal when trying to clear screen!");
+      }
    }
 
    std::pair<int,int> GetCursorPosition() {
