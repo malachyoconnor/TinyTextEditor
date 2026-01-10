@@ -50,7 +50,7 @@ namespace utils {
 
       logFileOpened = true;
       // Note: This clears any currently existing log files.
-      logFile.open(LOG_FILE_PATH, std::ofstream::out | std::ofstream::trunc);
+      logFile.open(LOG_FILE_PATH);
       if (!logFile.is_open()) {
          FailAndExit(std::format("Failed to open log file: {}", LOG_FILE_PATH));
       }

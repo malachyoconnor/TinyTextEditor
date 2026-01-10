@@ -3,12 +3,25 @@
 #include "Escape.h"
 #include "SpecialKey.h"
 
+constexpr int TAB_WIDTH = 3;
+
+//
+// bool Editor::CheckCharacter(char c) {
+//    int currentX = editorState_.GetXOffset() + cursorX_;
+//    int currentY = editorState_.GetYOffset() + cursorY_;
+//
+//    if (currentY < 0 || currentY >= editorState_.GetNumRowsWithData()) return false;
+//    if (currentX < 0 || currentX >= editorState_.GetLineWidth(cursorY_)) return false;
+//
+//    return editorState_.GetWholeLine(cursorY_)[currentX] == c;
+// }
+
 void Editor::HideCursor() {
    if (cursorHidden_) {
       throw std::logic_error("HideCursor() called when cursor hidden!");
    }
    cursorHidden_ = true;
-   appendBuffer_.Append(escape::HideCursor());
+   Draw(escape::HideCursor());
 }
 
 void Editor::ShowCursor() {
@@ -16,26 +29,26 @@ void Editor::ShowCursor() {
       throw std::logic_error("ShowCursor() called when cursor not hidden!");
    }
    cursorHidden_ = false;
-   appendBuffer_.Append(escape::ShowCursor());
+   Draw(escape::ShowCursor());
 }
 
 // This writes the escape characters to the buffer - NOT to the terminal
 // This writes the escape characters to the buffer - NOT to the terminal
 void Editor::ClearLineRightOfCursor() {
-   appendBuffer_.Append(escape::ClearLineRightOfCursor());
+   Draw(escape::ClearLineRightOfCursor());
 }
 
 void Editor::ClearScreen() {
-   appendBuffer_.Append(escape::ClearScreen());
+   Draw(escape::ClearScreen());
 }
 
 void Editor::JumpToFirstPixel() {
    // Write an escape sequence that jumps to the beginning of the terminal
-   appendBuffer_.Append(escape::JumpToFirstPixel());
+   Draw(escape::JumpToFirstPixel());
 }
 
 void Editor::UpdateCursorPosition(int x, int y) {
-   appendBuffer_.Append(escape::SetCursorPosition(x, y));
+   Draw(escape::SetCursorPosition(x, y));
 }
 
 void Editor::DrawSplashScreen() {
@@ -43,19 +56,30 @@ void Editor::DrawSplashScreen() {
 
       if (y == editorState_.GetScreenHeight() / 3) {
          std::string welcomeMessage = std::format("Tiny editor -- version {}", TINY_EDITOR_VERSION);
-         appendBuffer_.Append(std::format("{:^{}}", welcomeMessage, editorState_.GetScreenWidth()));
+         Draw(std::format("{:^{}}", welcomeMessage, editorState_.GetScreenWidth()));
       } else {
-         appendBuffer_.Append("->");
+         Draw("->");
       }
 
-      appendBuffer_.Append(escape::ClearLineRightOfCursor());
+      Draw(escape::ClearLineRightOfCursor());
       if (y != editorState_.GetScreenHeight() - 1) {
-         appendBuffer_.Append("\r\n");
+         Draw("\r\n");
       }
    }
 }
 
-bool Editor::DataExistsAtRow(int row) {
+bool Editor::CursorAtEndOfLine() {
+   int currentX = editorState_.GetXOffset() + cursorX_;
+   int currentY = editorState_.GetYOffset() + cursorY_;
+
+   // If we're in a weird state
+   if (currentY < 0 || currentY >= editorState_.GetNumRowsWithData()) return false;
+
+   if (currentX == editorState_.GetLineWidth(cursorY_) - 1) return true;
+   return false;
+}
+
+bool Editor::DataExistsAtY(int row) {
    return editorState_.GetYOffset() + row >= 0
        && editorState_.GetYOffset() + row < editorState_.GetNumRowsWithData();
 }
@@ -72,20 +96,31 @@ std::string_view Editor::GetVisibleCharactersAtRow(int i) {
    return offsetRow.substr(0, std::min(editorState_.GetScreenWidth(), static_cast<int>(offsetRow.length())));
 }
 
+void Editor::Draw(std::string_view text) {
+   // This is hideously inefficient
+
+   for (char ch : text) {
+      switch (ch) {
+         case '\t': appendBuffer_.Append(std::string(3, ' ')); break;
+         default:   appendBuffer_.Append(ch); break;
+      }
+   }
+}
+
 void Editor::DrawRows() {
    if (editorState_.GetNumRowsWithData() == 0) { DrawSplashScreen(); return; }
 
    for (int y = 0; y < editorState_.GetScreenHeight(); y++) {
-      appendBuffer_.Append(escape::ClearLineRightOfCursor());
+      Draw(escape::ClearLineRightOfCursor());
 
-      if (DataExistsAtRow(y)) {
-         appendBuffer_.Append(GetVisibleCharactersAtRow(y));
+      if (DataExistsAtY(y)) {
+         Draw(GetVisibleCharactersAtRow(y));
       } else {
-         appendBuffer_.Append("->");
+         Draw("->");
       }
 
       if (y != editorState_.GetScreenHeight() - 1) {
-         appendBuffer_.Append("\r\n");
+         Draw("\r\n");
       }
    }
 }
@@ -117,9 +152,25 @@ int Editor::ReadKey() {
 void Editor::MoveCursor(int c) {
    switch (c) {
       case ARROW_UP:                 --cursorY_;                                    break;
-      case ARROW_LEFT:               --cursorX_;                                    break;
+      case ARROW_LEFT: {
+         if (cursorX_ > 0) {
+            --cursorX_;
+         } else if (cursorY_ > 0) {
+            --cursorY_;
+            cursorX_ = editorState_.GetLineWidth(cursorY_) - 1;
+         }
+         break;
+      }
       case ARROW_DOWN:               ++cursorY_;                                    break;
-      case ARROW_RIGHT:              ++cursorX_;                                    break;
+      case ARROW_RIGHT: {
+         if (!CursorAtEndOfLine()) {
+            ++cursorX_;
+         } else if (DataExistsAtY(cursorY_ + 1)) {
+            ++cursorY_;
+            cursorX_ = 0;
+         }
+         break;
+      }
 
       // TODO: This implementation is more useful for scrolling apparently
       // {
@@ -141,14 +192,14 @@ void Editor::EditorScroll() {
    int currentY = editorState_.GetYOffset() + cursorY_;
 
    if (currentY >= 0 && currentY < editorState_.GetNumRowsWithData()) {
-      lineLength = static_cast<int>(editorState_.GetWholeLine(cursorY_).length());
+      lineLength = editorState_.GetLineWidth(cursorY_);
    }
 
    // Clamp the cursor to the last character of the row
    int currentX = editorState_.GetXOffset() + cursorX_;
    if (currentX >= lineLength) {
-      int adjustment = std::max(0, lineLength - 1) - currentX;
-      cursorX_ += adjustment;
+      cursorX_ -= currentX;                         // move it back to zero
+      cursorX_ += std::max(0, lineLength - 1); // then move it to the end of the line
    }
 
    // Handle Horizontal Scrolling

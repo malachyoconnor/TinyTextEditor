@@ -16,8 +16,10 @@ public:
      cursorY_(0)
      {}
 
-   bool DataExistsAtRow(int row);
+   bool CursorAtEndOfLine();
+   bool DataExistsAtY(int row);
    std::string_view GetVisibleCharactersAtRow(int i);
+   void Draw(std::string_view text);
    void DrawRows();
    void RefreshScreen();
    int ReadKey();
@@ -30,6 +32,7 @@ public:
    void JumpToFirstPixel();
    void UpdateCursorPosition(int x, int y);
    void DrawSplashScreen();
+   // bool CheckCharacter(char c);
    void HideCursor();
    void ShowCursor();
    void ClearLineRightOfCursor();

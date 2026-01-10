@@ -57,6 +57,7 @@ public:
    int GetYOffset() const { return yOffset_; }
    int GetXOffset() const { return xOffset_; }
    int GetCurrentLineWidth() const { return GetWholeLine().length(); }
+   int GetLineWidth(int i) const { return GetWholeLine(i).length(); }
 
    int GetScreenHeight() const { return screenY_; }
    int GetScreenWidth() const { return screenX_; }

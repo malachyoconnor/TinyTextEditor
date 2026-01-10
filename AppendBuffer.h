@@ -12,6 +12,10 @@ public:
       buffer_ += str;
    }
 
+   void Append(const char str) {
+      buffer_ += str;
+   }
+
    void WriteBufferToSTDOUT() {
       if (buffer_.empty()) return;
 
