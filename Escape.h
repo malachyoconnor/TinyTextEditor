@@ -47,6 +47,18 @@ namespace escape {
       return "\x1b[6n";
    }
 
+   constexpr std::string EnableInvertedColours() {
+      return std::format("\x1b[7m");
+   }
+
+   constexpr std::string SetTextColourToGreen() {
+      return "\x1b[32m";
+   }
+
+   constexpr std::string DefaultTextFormatting() {
+      return "\x1b[m";
+   }
+
 }
 
 #endif //TINYTEXTEDITOR_ESCAPE_H

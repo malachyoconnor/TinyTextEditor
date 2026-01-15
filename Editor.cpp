@@ -54,15 +54,61 @@ void Editor::UpdateRenderCursor(const std::string_view &line) {
    renderX_ = 0;
 
    if (!DataExistsAtY(cursorY_)) return;
+   if (cursorX_ < 0) renderX_ = cursorX_;
 
    for (int j = 0; j < cursorX_; j++) {
       if (line[j] == '\t') {
-         utils::LOG("SEEN A TAB");
-
          renderX_ += (settings::TAB_WIDTH - 1) - (renderX_ % settings::TAB_WIDTH);
       }
       renderX_++;
    }
+}
+
+void Editor::SetHelpMessage(const std::string_view &text) {
+   helpMessage_ = text;
+   helpMessageStartTime_ = std::chrono::system_clock::now();
+}
+
+void Editor::DrawHelpMessage() {
+   Draw("\r\n");
+   Draw(escape::ClearLineRightOfCursor());
+
+   if (!helpMessage_.has_value()) {
+      Draw(std::string(editorState_.GetScreenWidth() - 1, ' '));
+      return;
+   }
+
+   std::string helpMessage = std::format("HELP: {}", helpMessage_.value());
+
+   if (std::chrono::system_clock::now() - helpMessageStartTime_ < std::chrono::seconds(5)) {
+      Draw(escape::SetTextColourToGreen());
+      Draw(helpMessage_.value());
+      Draw(escape::DefaultTextFormatting());
+   }
+
+}
+
+void Editor::DrawStatusBar() {
+   Draw(escape::EnableInvertedColours());
+
+   // Other code prohibits drawing a newline on the last line
+   Draw("\r\n");
+
+   if (!editorState_.GetFileName().has_value()) {
+      Draw(std::string(editorState_.GetScreenWidth() - 1, ' '));
+   } else {
+      std::string fileName = editorState_.GetFileName().value();
+      int currentLine = editorState_.GetYOffset() + cursorY_ + 1;
+
+      std::string informationString = std::format("{} Line:{}", fileName, currentLine);
+
+
+      Draw(std::format("{}{:^{}}",informationString, " ",
+            editorState_.GetScreenWidth() - informationString.size())
+      );
+   }
+
+   Draw(escape::DefaultTextFormatting());
 }
 
 void Editor::DrawSplashScreen() {
@@ -127,21 +173,26 @@ void Editor::Draw(std::string_view text) {
 }
 
 void Editor::DrawRows() {
-   if (editorState_.GetNumLinesWithData() == 0) { DrawSplashScreen(); return; }
+   if (editorState_.GetNumLinesWithData() == 0) {
+      DrawSplashScreen();
+   } else {
+      for (int y = 0; y < editorState_.GetScreenHeight(); y++) {
+         Draw(escape::ClearLineRightOfCursor());
 
-   for (int y = 0; y < editorState_.GetScreenHeight(); y++) {
-      Draw(escape::ClearLineRightOfCursor());
+         if (DataExistsAtY(y)) {
+            Draw(GetVisibleRenderCharactersAtRow(y));
+         } else {
+            Draw("->");
+         }
 
-      if (DataExistsAtY(y)) {
-         Draw(GetVisibleRenderCharactersAtRow(y));
-      } else {
-         Draw("->");
-      }
-
-      if (y != editorState_.GetScreenHeight() - 1) {
-         Draw("\r\n");
+         if (y != editorState_.GetScreenHeight() - 1) {
+            Draw("\r\n");
+         }
       }
    }
+
+   DrawStatusBar();
+   DrawHelpMessage();
 }
 
 void Editor::RefreshScreen() {
@@ -170,7 +221,9 @@ int Editor::ReadKey() {
 
 void Editor::MoveCursor(int c) {
    switch (c) {
-      case ARROW_UP:                 --cursorY_;                                    break;
+      case ARROW_UP:    --cursorY_;  break;
+      case ARROW_DOWN:  ++cursorY_;  break;
+
       case ARROW_LEFT: {
          if (cursorX_ > 0) {
             --cursorX_;
@@ -180,7 +233,6 @@ void Editor::MoveCursor(int c) {
          }
          break;
       }
-      case ARROW_DOWN:               ++cursorY_;                                    break;
       case ARROW_RIGHT: {
          if (!CursorAtEndOfLine()) {
             ++cursorX_;
@@ -191,16 +243,39 @@ void Editor::MoveCursor(int c) {
          break;
       }
 
-      // TODO: This implementation is more useful for scrolling apparently
-      // {
-      //    int times = E.screenrows;
-      //    while (times--)
-      //       editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
-      // }
-      case PAGE_UP:                  cursorY_ = 0;                                  break;
-      case PAGE_DOWN:                cursorY_ = editorState_.GetScreenHeight()-1;     break;
-      case HOME:                     cursorX_ = 0;                                  break;
-      case END:                      cursorX_ = editorState_.GetScreenWidth()-1;     break;
+      case PAGE_UP: {
+         if (cursorY_ == 0) {
+            cursorY_ = -editorState_.GetScreenHeight();
+         } else {
+            cursorY_ = 0;
+         }
+         break;
+      }
+      case PAGE_DOWN: {
+         if (cursorY_ == editorState_.GetScreenHeight() - 1) {
+            cursorY_ += editorState_.GetScreenHeight();
+         } else {
+            cursorY_ = editorState_.GetScreenHeight()-1;
+         }
+         break;
+      }
+
+      case HOME: {
+         if (cursorX_ == 0) {
+            cursorX_ = -editorState_.GetScreenWidth();
+         } else {
+            cursorX_ = 0;
+         }
+         break;
+      }
+      case END: {
+         if (cursorX_ == editorState_.GetScreenWidth() - 1) {
+            cursorX_ += editorState_.GetScreenWidth();
+         }else {
+            cursorX_ = editorState_.GetScreenWidth()-1;
+         }
+         break;
+      }
    }
 
    Scroll();
@@ -221,6 +296,10 @@ void Editor::Scroll() {
    if (currentX >= lineLength) {
       renderX_ -= currentX;                         // move it back to zero
       renderX_ += std::max(0, lineLength - 1); // then move it to the end of the line
+   }
+   // Clamp the cursor to the last line in the file
+   if (currentY >= editorState_.GetNumLinesWithData()) {
+      cursorY_ -= (1 + currentY - editorState_.GetNumLinesWithData());
    }
 
    // Handle Horizontal Scrolling

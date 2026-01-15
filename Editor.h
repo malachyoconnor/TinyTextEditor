@@ -15,7 +15,9 @@ public:
      appendBuffer_(AppendBuffer()),
      cursorX_(0),
      cursorY_(0),
-     renderX_(0)
+     renderX_(0),
+     helpMessage_(std::nullopt),
+     helpMessageStartTime_()
      {}
 
    bool             CursorAtEndOfLine();
@@ -36,6 +38,9 @@ public:
    void             JumpToFirstPixel();
    void             UpdateCursorPosition(int x, int y);
    void             UpdateRenderCursor(const std::string_view &line);
+   void             SetHelpMessage(const std::string_view &text);
+   void             DrawHelpMessage();
+   void             DrawStatusBar();
    void             DrawSplashScreen();
 
    void             HideCursor();
@@ -47,15 +52,17 @@ public:
 
 
 private:
-   bool         shouldContinue_;
-   bool         cursorHidden_;
-   EditorState& editorState_;
-   AppendBuffer appendBuffer_;
-   int          cursorX_;
-   int          cursorY_;
-   int          renderX_;
-   std::string  editorRow_;
-   int          numEditorRows_;
+   bool                       shouldContinue_;
+   bool                       cursorHidden_;
+   EditorState&               editorState_;
+   AppendBuffer               appendBuffer_;
+   int                        cursorX_;
+   int                        cursorY_;
+   int                        renderX_;
+   std::string                editorRow_;
+   int                        numEditorRows_;
+   std::optional<std::string> helpMessage_;
+   std::chrono::system_clock::time_point helpMessageStartTime_;
 };
 
 

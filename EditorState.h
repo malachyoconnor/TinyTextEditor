@@ -17,6 +17,7 @@ public:
       initialTerminalAttributes_(std::nullopt),
       yOffset_(0),
       xOffset_(0),
+      currentFilePath_(std::nullopt),
       fileBuffer_({})
    {
       EnableRawMode();
@@ -31,6 +32,11 @@ public:
       if (screenY_ == -1 || screenX_ == -1) {
          utils::FailAndExit(std::format("Read rows and columns as ({},{})", screenY_, screenX_));
       }
+
+      // Add space for a status bar at the bottom
+      screenY_ -= 1;
+      // Add space for a message bar
+      screenY_ -= 1;
    }
 
    void EnableRawMode();
@@ -74,6 +80,13 @@ public:
    int GetScreenWidth() const { return screenX_; }
    int GetNumLinesWithData() const { return renderBuffer_.size(); }
 
+   std::optional<std::string> GetFileName() const {
+      if (currentFilePath_.has_value()) {
+         return currentFilePath_.value().filename();
+      }
+      return std::nullopt;
+   }
+
 private:
    int screenY_;
    int screenX_;
@@ -81,6 +94,8 @@ private:
 
    int yOffset_;
    int xOffset_;
+
+   std::optional<std::filesystem::path> currentFilePath_;
 
    // Two buffers needed - one for the raw file and one for what gets rendered.
    std::vector<std::string> fileBuffer_;

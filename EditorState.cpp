@@ -95,6 +95,8 @@ void EditorState::OpenFile(const std::filesystem::path& path) {
       utils::FailAndExit(std::format("Could not open file: {}", path.string()));
    }
 
+   currentFilePath_.emplace(path);
+
    std::string line;
    while (std::getline(fileStream, line)) {
       AppendLine(line);
