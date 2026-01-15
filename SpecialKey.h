@@ -3,6 +3,8 @@
 
 enum SpecialKey {
    ESCAPE_CHAR = '\x1b',
+   BACKSPACE = 127,
+
 
    // Outside the range of a char
    ARROW_LEFT = 1000,

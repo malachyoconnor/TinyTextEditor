@@ -11,20 +11,12 @@
 
 class EditorState {
 public:
-   EditorState() :
-      screenY_(-1),
-      screenX_(-1),
-      initialTerminalAttributes_(std::nullopt),
-      yOffset_(0),
-      xOffset_(0),
-      currentFilePath_(std::nullopt),
-      fileBuffer_({})
-   {
+   EditorState() : screenY_(-1), screenX_(-1), initialTerminalAttributes_(std::nullopt),
+      yOffset_(0), xOffset_(0), currentFilePath_(std::nullopt), fileBuffer_({}) {
       EnableRawMode();
 
       if (utils::isDebuggerAttached()) {
-         screenX_ = 0;
-         screenY_ = 0;
+         screenX_ = 0; screenY_ = 0;
          return;
       }
 
@@ -32,60 +24,38 @@ public:
       if (screenY_ == -1 || screenX_ == -1) {
          utils::FailAndExit(std::format("Read rows and columns as ({},{})", screenY_, screenX_));
       }
-
       // Add space for a status bar at the bottom
       screenY_ -= 1;
       // Add space for a message bar
       screenY_ -= 1;
    }
+   ~EditorState();
 
    void EnableRawMode();
-   // TEMP
-   void UpdateRenderBuffer(const std::string &row);
-   void AppendLine(const std::string& row);
+   void UpdateRenderBuffer(const std::string &row, int index);
+   void AppendLine(const std::string& line);
+   void InsertCharAt(int y, int x, char c);
    void OpenFile(const std::filesystem::path &path);
-   ~EditorState();
 
    void AddToYOffsetIfPossible(int n);
    void AddToXOffsetIfPossible(int n);
-   void AddToRenderXOffsetIfPossible(int n);
 
-   [[nodiscard]]
-   const std::string_view GetRenderLine() const {
-      return std::string_view(renderBuffer_[yOffset_]);
-   }
-
-   [[nodiscard]]
-   const std::string_view GetRenderLine(int i) const {
-      return std::string_view(renderBuffer_[i + yOffset_]);
-   }
-
-   [[nodiscard]]
-  const std::string_view GetFileLine() const {
-      return std::string_view(fileBuffer_[yOffset_]);
-   }
-
-   [[nodiscard]]
-   const std::string_view GetFileLine(int i) const {
-      return std::string_view(fileBuffer_[i + yOffset_]);
-   }
+   std::string_view GetRenderLine() const;
+   std::string_view GetRenderLine(int i) const;
+   std::string_view GetFileLine() const;
+   std::string_view GetFileLine(int i) const;
+   std::optional<std::filesystem::path> GetFilePath() const;
 
    int GetYOffset() const { return yOffset_; }
    int GetXOffset() const { return xOffset_; }
 
-   int GetCurrentLineWidth() const { return GetRenderLine().length(); }
    int GetLineWidth(int i) const { return GetRenderLine(i).length(); }
+   int GetNumLinesWithData() const { return renderBuffer_.size(); }
 
    int GetScreenHeight() const { return screenY_; }
    int GetScreenWidth() const { return screenX_; }
-   int GetNumLinesWithData() const { return renderBuffer_.size(); }
 
-   std::optional<std::string> GetFileName() const {
-      if (currentFilePath_.has_value()) {
-         return currentFilePath_.value().filename();
-      }
-      return std::nullopt;
-   }
+   std::optional<std::string> GetFileName() const;
 
 private:
    int screenY_;

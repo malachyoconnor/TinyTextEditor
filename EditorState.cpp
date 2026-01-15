@@ -36,6 +36,33 @@ void EditorState::AddToXOffsetIfPossible(int n) {
    }
 }
 
+std::string_view EditorState::GetRenderLine() const {
+   return std::string_view(renderBuffer_[yOffset_]);
+}
+
+std::string_view EditorState::GetRenderLine(int i) const {
+   return std::string_view(renderBuffer_[i + yOffset_]);
+}
+
+std::string_view EditorState::GetFileLine() const {
+   return std::string_view(fileBuffer_[yOffset_]);
+}
+
+std::string_view EditorState::GetFileLine(int i) const {
+   return std::string_view(fileBuffer_[i + yOffset_]);
+}
+
+std::optional<std::filesystem::path> EditorState::GetFilePath() const {
+   return currentFilePath_;
+}
+
+std::optional<std::string> EditorState::GetFileName() const {
+   if (currentFilePath_.has_value()) {
+      return currentFilePath_.value().filename();
+   }
+   return std::nullopt;
+}
+
 void EditorState::EnableRawMode() {
    if (initialTerminalAttributes_.has_value()) {
       throw std::logic_error("Tried to update initial terminal attributes more than once!");
@@ -71,7 +98,7 @@ void EditorState::EnableRawMode() {
    tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminalAttributes);
 }
 
-void EditorState::UpdateRenderBuffer(const std::string &row) {
+void EditorState::UpdateRenderBuffer(const std::string &row, int index) {
    std::string result {};
 
    for (char c : row) {
@@ -81,12 +108,23 @@ void EditorState::UpdateRenderBuffer(const std::string &row) {
         result += c;
       }
    }
-   renderBuffer_.push_back(result);
+   if (index >= renderBuffer_.size()) {
+      renderBuffer_.push_back(result);
+   } else {
+      renderBuffer_[index] = result;
+   }
 }
 
-void EditorState::AppendLine(const std::string &row) {
-   fileBuffer_.push_back(row);
-   UpdateRenderBuffer(row);
+void EditorState::AppendLine(const std::string &line) {
+   fileBuffer_.push_back(line);
+   UpdateRenderBuffer(line, fileBuffer_.size());
+}
+
+void EditorState::InsertCharAt(int y, int x, char c) {
+   const std::string& originalLine = fileBuffer_[y + yOffset_];
+
+   fileBuffer_[y + yOffset_] = originalLine.substr(0, x + xOffset_) + c + originalLine.substr(x + xOffset_);
+   UpdateRenderBuffer(fileBuffer_[y + yOffset_], y + yOffset_);
 }
 
 void EditorState::OpenFile(const std::filesystem::path& path) {

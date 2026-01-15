@@ -98,6 +98,11 @@ void Editor::DrawStatusBar() {
       Draw(std::string(editorState_.GetScreenWidth() - 1, ' '));
    } else {
       std::string fileName = editorState_.GetFileName().value();
+
+      if (numCharsModified_ != 0) {
+         fileName += " (modified)";
+      }
+
       int currentLine = editorState_.GetYOffset() + cursorY_ + 1;
 
       std::string informationString = std::format("{} Line:{}", fileName, currentLine);
@@ -126,6 +131,27 @@ void Editor::DrawSplashScreen() {
          Draw("\r\n");
       }
    }
+}
+
+void Editor::SaveFile() {
+   if (!editorState_.GetFilePath().has_value()) {
+      SetHelpMessage("No file currently open! Cannot save");
+      return;
+   }
+
+   std::ofstream outFile {editorState_.GetFilePath().value()};
+   if (!outFile.is_open()) {
+      SetHelpMessage("Could not open the file! Cannot save");
+      return;
+   }
+
+   for (int i = 0; i < editorState_.GetNumLinesWithData(); i++) {
+      outFile << editorState_.GetFileLine(i) << std::endl;
+   }
+   numCharsModified_ = 0;
+
+   outFile.close();
+   SetHelpMessage(std::format("File saved at: {}", editorState_.GetFilePath().value().string()));
 }
 
 bool Editor::CursorAtEndOfLine() {
@@ -297,9 +323,9 @@ void Editor::Scroll() {
       renderX_ -= currentX;                         // move it back to zero
       renderX_ += std::max(0, lineLength - 1); // then move it to the end of the line
    }
-   // Clamp the cursor to the last line in the file
+   // Clamp the cursor to one past the last line in the file
    if (currentY >= editorState_.GetNumLinesWithData()) {
-      cursorY_ -= (1 + currentY - editorState_.GetNumLinesWithData());
+      cursorY_ -= (currentY - editorState_.GetNumLinesWithData());
    }
 
    // Handle Horizontal Scrolling
@@ -324,12 +350,27 @@ void Editor::Scroll() {
 }
 
 // Returns bool for if we should exit.
-void Editor::ProcessKeypress(int c) {
-   if (c == ESCAPE_CHAR) {
-      c = ConvertEscapeKey();
+void Editor::ProcessKeypress(int ch) {
+   if (ch == ESCAPE_CHAR) {
+      ch = ConvertEscapeKey();
    }
 
-   switch (c) {
+   switch (ch) {
+      case 0: break;
+
+      // TODO:
+      case BACKSPACE: break;
+      case '\r': break;
+      case DELETE: break;
+      case ESCAPE_CHAR: break;
+      case utils::ControlKey('h'): break;
+      case utils::ControlKey('l'): break;
+
+      case utils::ControlKey('s'): {
+         SaveFile();
+         break;
+      }
+
       case ARROW_UP:
       case ARROW_LEFT:
       case ARROW_DOWN:
@@ -337,8 +378,22 @@ void Editor::ProcessKeypress(int c) {
       case PAGE_UP:
       case PAGE_DOWN:
       case HOME:
-      case END:                      MoveCursor(c);           break;
-      case utils::ControlKey('q'): shouldContinue_ = false; break;
+      case END: {
+         MoveCursor(ch);
+         break;
+      }
+      case utils::ControlKey('q'): {
+         shouldContinue_ = false;
+         break;
+      }
+      default: {
+         utils::LOG(std::format("Trying to insert: {}", static_cast<int>(ch)));
+         bool success = InsertChar(ch);
+         if (success) {
+            MoveCursor(ARROW_RIGHT);
+         }
+         break;
+      }
    }
 }
 
@@ -388,4 +443,22 @@ SpecialKey Editor::ConvertEscapeKey() {
    }
 
    return ESCAPE_CHAR;
+}
+
+bool Editor::InsertChar(int toInsert) {
+   if (std::numeric_limits<char>::max() < toInsert || toInsert < std::numeric_limits<char>::min()) {
+      // TODO: Handle special characters
+      return false;
+   }
+
+   char insertChar = static_cast<char>(toInsert);
+
+   int currentY = editorState_.GetYOffset() + cursorY_;
+   if (currentY == editorState_.GetNumLinesWithData()) {
+      editorState_.AppendLine("");
+   }
+
+   editorState_.InsertCharAt(cursorY_, cursorX_, insertChar);
+   numCharsModified_++;
+   return true;
 }

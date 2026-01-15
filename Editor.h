@@ -9,30 +9,36 @@ constexpr std::string TINY_EDITOR_VERSION = "0.0.1";
 class Editor {
 public:
    Editor(EditorState& editorState)
-   : shouldContinue_(true),
-     cursorHidden_(false),
-     editorState_(editorState),
-     appendBuffer_(AppendBuffer()),
-     cursorX_(0),
-     cursorY_(0),
-     renderX_(0),
-     helpMessage_(std::nullopt),
-     helpMessageStartTime_()
-     {}
+      : shouldContinue_(true),
+        cursorHidden_(false),
+        editorState_(editorState),
+        appendBuffer_(AppendBuffer()),
+        cursorX_(0),
+        cursorY_(0),
+        renderX_(0),
+        numEditorRows_(0),
+        numCharsModified_(0),
+        helpMessage_(std::nullopt),
+        helpMessageStartTime_() {
+   }
+
+   void             SaveFile();
 
    bool             CursorAtEndOfLine();
    bool             DataExistsAtY(int row);
 
-   std::string_view GetVisibleRenderCharactersAtRow(int i);
-   std::string_view GetVisibleFileCharactersAtRow(int i);
    void             Draw(std::string_view text);
    void             DrawRows();
-   void             RefreshScreen();
-   int              ReadKey();
    void             MoveCursor(int c);
+   void             ProcessKeypress(int ch);
+   void             RefreshScreen();
    void             Scroll();
-   void             ProcessKeypress(int c);
+   std::string_view GetVisibleFileCharactersAtRow(int i);
+   std::string_view GetVisibleRenderCharactersAtRow(int i);
+   int              ReadKey();
    SpecialKey       ConvertEscapeKey();
+
+   bool             InsertChar(int toInsert);
 
    void             ClearScreen();
    void             JumpToFirstPixel();
@@ -61,6 +67,7 @@ private:
    int                        renderX_;
    std::string                editorRow_;
    int                        numEditorRows_;
+   int                        numCharsModified_;
    std::optional<std::string> helpMessage_;
    std::chrono::system_clock::time_point helpMessageStartTime_;
 };
