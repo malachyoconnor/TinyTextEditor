@@ -15,7 +15,8 @@ add_executable(TinyTextEditor main.cpp
         SpecialKey.h)
 
 add_executable(KeyPressDetector
-        KeyPressDetector.cpp EditorState.cpp Editor.h Terminal.h Terminal.cpp utils.h)
+        KeyPressDetector.cpp EditorState.cpp Editor.h Terminal.h Terminal.cpp utils.h
+        Settings.h)
 
 # Finds me the root directory of the project - useful for testing
 target_compile_definitions(TinyTextEditor PRIVATE ROOT_DIRECTORY="${PROJECT_SOURCE_DIR}")

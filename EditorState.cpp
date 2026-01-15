@@ -3,6 +3,8 @@
 #include <iostream>
 #include <ostream>
 
+#include "Settings.h"
+
 EditorState::~EditorState() {
    if (!initialTerminalAttributes_.has_value()) {
       utils::FailAndExit("We're trying to disable RAW mode, but the initial terminal attributes has no value!");
@@ -21,8 +23,8 @@ void EditorState::AddToYOffsetIfPossible(int n) {
    if (yOffset_ < 0) {
       yOffset_ = 0;
    }
-   else if (yOffset_ >= allLines_.size()) {
-      yOffset_ = allLines_.size() - 1;
+   else if (yOffset_ >= renderBuffer_.size()) {
+      yOffset_ = renderBuffer_.size() - 1;
    }
 }
 
@@ -69,8 +71,22 @@ void EditorState::EnableRawMode() {
    tcsetattr(STDIN_FILENO, TCSAFLUSH, &terminalAttributes);
 }
 
+void EditorState::UpdateRenderBuffer(const std::string &row) {
+   std::string result {};
+
+   for (char c : row) {
+      if (c == '\t') {
+         result += std::string(settings::TAB_WIDTH, ' ');
+      } else {
+        result += c;
+      }
+   }
+   renderBuffer_.push_back(result);
+}
+
 void EditorState::AppendLine(const std::string &row) {
-   allLines_.push_back(row);
+   fileBuffer_.push_back(row);
+   UpdateRenderBuffer(row);
 }
 
 void EditorState::OpenFile(const std::filesystem::path& path) {
@@ -90,6 +106,5 @@ void EditorState::OpenFile(const std::filesystem::path& path) {
    if (fileStream.bad()) {
       utils::FailAndExit(std::format("Could not read file: {}", path.string()));
    }
-
 
 }

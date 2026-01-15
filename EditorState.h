@@ -6,7 +6,6 @@
 #include <filesystem>
 #include <vector>
 
-#include "AppendBuffer.h"
 #include "Terminal.h"
 #include "utils.h"
 
@@ -18,8 +17,7 @@ public:
       initialTerminalAttributes_(std::nullopt),
       yOffset_(0),
       xOffset_(0),
-      allLines_({}),
-      buf_(AppendBuffer())
+      fileBuffer_({})
    {
       EnableRawMode();
 
@@ -37,31 +35,44 @@ public:
 
    void EnableRawMode();
    // TEMP
+   void UpdateRenderBuffer(const std::string &row);
    void AppendLine(const std::string& row);
    void OpenFile(const std::filesystem::path &path);
    ~EditorState();
 
    void AddToYOffsetIfPossible(int n);
    void AddToXOffsetIfPossible(int n);
+   void AddToRenderXOffsetIfPossible(int n);
 
    [[nodiscard]]
-   const std::string_view GetWholeLine() const {
-      return std::string_view(allLines_[yOffset_]);
+   const std::string_view GetRenderLine() const {
+      return std::string_view(renderBuffer_[yOffset_]);
    }
 
    [[nodiscard]]
-   const std::string_view GetWholeLine(int i) const {
-      return std::string_view(allLines_[i + yOffset_]);
+   const std::string_view GetRenderLine(int i) const {
+      return std::string_view(renderBuffer_[i + yOffset_]);
+   }
+
+   [[nodiscard]]
+  const std::string_view GetFileLine() const {
+      return std::string_view(fileBuffer_[yOffset_]);
+   }
+
+   [[nodiscard]]
+   const std::string_view GetFileLine(int i) const {
+      return std::string_view(fileBuffer_[i + yOffset_]);
    }
 
    int GetYOffset() const { return yOffset_; }
    int GetXOffset() const { return xOffset_; }
-   int GetCurrentLineWidth() const { return GetWholeLine().length(); }
-   int GetLineWidth(int i) const { return GetWholeLine(i).length(); }
+
+   int GetCurrentLineWidth() const { return GetRenderLine().length(); }
+   int GetLineWidth(int i) const { return GetRenderLine(i).length(); }
 
    int GetScreenHeight() const { return screenY_; }
    int GetScreenWidth() const { return screenX_; }
-   int GetNumRowsWithData() const { return allLines_.size(); }
+   int GetNumLinesWithData() const { return renderBuffer_.size(); }
 
 private:
    int screenY_;
@@ -70,9 +81,10 @@ private:
 
    int yOffset_;
    int xOffset_;
-   std::vector<std::string> allLines_;
 
-   AppendBuffer buf_;
+   // Two buffers needed - one for the raw file and one for what gets rendered.
+   std::vector<std::string> fileBuffer_;
+   std::vector<std::string> renderBuffer_;
 };
 
 #endif //TINYTEXTEDITOR_EDITORSTATE_H

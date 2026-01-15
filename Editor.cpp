@@ -1,9 +1,8 @@
 #include "Editor.h"
 
 #include "Escape.h"
+#include "Settings.h"
 #include "SpecialKey.h"
-
-constexpr int TAB_WIDTH = 3;
 
 //
 // bool Editor::CheckCharacter(char c) {
@@ -51,6 +50,21 @@ void Editor::UpdateCursorPosition(int x, int y) {
    Draw(escape::SetCursorPosition(x, y));
 }
 
+void Editor::UpdateRenderCursor(const std::string_view &line) {
+   renderX_ = 0;
+
+   if (!DataExistsAtY(cursorY_)) return;
+
+   for (int j = 0; j < cursorX_; j++) {
+      if (line[j] == '\t') {
+         utils::LOG("SEEN A TAB");
+
+         renderX_ += (settings::TAB_WIDTH - 1) - (renderX_ % settings::TAB_WIDTH);
+      }
+      renderX_++;
+   }
+}
+
 void Editor::DrawSplashScreen() {
    for (int y = 0; y < editorState_.GetScreenHeight(); y++) {
 
@@ -73,19 +87,31 @@ bool Editor::CursorAtEndOfLine() {
    int currentY = editorState_.GetYOffset() + cursorY_;
 
    // If we're in a weird state
-   if (currentY < 0 || currentY >= editorState_.GetNumRowsWithData()) return false;
+   if (currentY < 0 || currentY >= editorState_.GetNumLinesWithData()) return false;
 
-   if (currentX == editorState_.GetLineWidth(cursorY_) - 1) return true;
+   if (currentX == editorState_.GetLineWidth(cursorY_)) return true;
    return false;
 }
 
 bool Editor::DataExistsAtY(int row) {
    return editorState_.GetYOffset() + row >= 0
-       && editorState_.GetYOffset() + row < editorState_.GetNumRowsWithData();
+       && editorState_.GetYOffset() + row < editorState_.GetNumLinesWithData();
 }
 
-std::string_view Editor::GetVisibleCharactersAtRow(int i) {
-   std::string_view fullRow = editorState_.GetWholeLine(i);
+std::string_view Editor::GetVisibleRenderCharactersAtRow(int i) {
+   std::string_view fullRow = editorState_.GetRenderLine(i);
+   int colOffset = editorState_.GetXOffset();
+
+   if (colOffset >= fullRow.length()) {
+      return "";
+   }
+
+   std::string_view offsetRow = fullRow.substr(colOffset);
+   return offsetRow.substr(0, std::min(editorState_.GetScreenWidth(), static_cast<int>(offsetRow.length())));
+}
+
+std::string_view Editor::GetVisibleFileCharactersAtRow(int i) {
+   std::string_view fullRow = editorState_.GetFileLine(i);
    int colOffset = editorState_.GetXOffset();
 
    if (colOffset >= fullRow.length()) {
@@ -97,24 +123,17 @@ std::string_view Editor::GetVisibleCharactersAtRow(int i) {
 }
 
 void Editor::Draw(std::string_view text) {
-   // This is hideously inefficient
-
-   for (char ch : text) {
-      switch (ch) {
-         case '\t': appendBuffer_.Append(std::string(3, ' ')); break;
-         default:   appendBuffer_.Append(ch); break;
-      }
-   }
+   appendBuffer_.Append(text);
 }
 
 void Editor::DrawRows() {
-   if (editorState_.GetNumRowsWithData() == 0) { DrawSplashScreen(); return; }
+   if (editorState_.GetNumLinesWithData() == 0) { DrawSplashScreen(); return; }
 
    for (int y = 0; y < editorState_.GetScreenHeight(); y++) {
       Draw(escape::ClearLineRightOfCursor());
 
       if (DataExistsAtY(y)) {
-         Draw(GetVisibleCharactersAtRow(y));
+         Draw(GetVisibleRenderCharactersAtRow(y));
       } else {
          Draw("->");
       }
@@ -130,7 +149,7 @@ void Editor::RefreshScreen() {
    {
       JumpToFirstPixel();
       DrawRows();
-      UpdateCursorPosition(cursorX_, cursorY_);
+      UpdateCursorPosition(renderX_, cursorY_);
    }
    ShowCursor();
 
@@ -184,32 +203,34 @@ void Editor::MoveCursor(int c) {
       case END:                      cursorX_ = editorState_.GetScreenWidth()-1;     break;
    }
 
-   EditorScroll();
+   Scroll();
 }
 
-void Editor::EditorScroll() {
+void Editor::Scroll() {
+   UpdateRenderCursor(GetVisibleFileCharactersAtRow(cursorY_));
+
    int lineLength = 0;
    int currentY = editorState_.GetYOffset() + cursorY_;
 
-   if (currentY >= 0 && currentY < editorState_.GetNumRowsWithData()) {
+   if (currentY >= 0 && currentY < editorState_.GetNumLinesWithData()) {
       lineLength = editorState_.GetLineWidth(cursorY_);
    }
 
    // Clamp the cursor to the last character of the row
-   int currentX = editorState_.GetXOffset() + cursorX_;
+   int currentX = editorState_.GetXOffset() + renderX_;
    if (currentX >= lineLength) {
-      cursorX_ -= currentX;                         // move it back to zero
-      cursorX_ += std::max(0, lineLength - 1); // then move it to the end of the line
+      renderX_ -= currentX;                         // move it back to zero
+      renderX_ += std::max(0, lineLength - 1); // then move it to the end of the line
    }
 
    // Handle Horizontal Scrolling
-   if (cursorX_ < 0) {
-      editorState_.AddToXOffsetIfPossible(cursorX_);
-      cursorX_ = 0;
+   if (renderX_ < 0) {
+      editorState_.AddToXOffsetIfPossible(renderX_);
+      renderX_ = 0;
    }
-   else if (cursorX_ >= editorState_.GetScreenWidth()) {
-      editorState_.AddToXOffsetIfPossible(cursorX_ - editorState_.GetScreenWidth() + 1);
-      cursorX_ = editorState_.GetScreenWidth() - 1;
+   else if (renderX_ >= editorState_.GetScreenWidth()) {
+      editorState_.AddToXOffsetIfPossible(renderX_ - editorState_.GetScreenWidth() + 1);
+      renderX_ = editorState_.GetScreenWidth() - 1;
    }
 
    // Handle Vertical Scrolling
